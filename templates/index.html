@@ -1,56 +1,48 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Document Similarity & Keywords</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <title>Bank & Standard Comparator</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 </head>
-<body class="bg-light py-4">
+<body class="bg-light p-4">
   <div class="container">
-    <h1 class="mb-4 text-center">Document Similarity & Keywords</h1>
+    <h1 class="mb-4 text-center">Bank & Standard Comparator</h1>
 
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <div class="alert alert-warning">
-          {% for m in messages %} <div>{{ m }}</div> {% endfor %}
-        </div>
-      {% endif %}
-    {% endwith %}
+    {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+    {% if message %}<div class="alert alert-info">{{ message }}</div>{% endif %}
 
-    <form class="row g-3" method="POST" action="{{ url_for('analyze') }}" enctype="multipart/form-data">
+    <form class="row g-3" method="POST" action="/analyze" enctype="multipart/form-data">
       <div class="col-md-6">
-        <label class="form-label fw-semibold">Upload Bank ESG PDF</label>
-        <input class="form-control" type="file" name="bank_pdf" accept=".pdf" required>
-        <div class="form-text">Upload one ESG report (PDF)</div>
+        <label class="form-label">Upload Bank ESG PDF:</label>
+        <input type="file" name="bank_pdf" class="form-control" accept="application/pdf" required>
+        <div class="form-text">Only .pdf is accepted.</div>
       </div>
 
-      <div class="col-md-6">
-        <label class="form-label fw-semibold">Select Standard</label>
-        <select class="form-select" name="standard" required>
-          <option value="">-- Select --</option>
+      <div class="col-md-4">
+        <label class="form-label">Select Standard:</label>
+        <select name="standard" class="form-select" required>
+          <option value="">-- Select Standard --</option>
           {% for std in standards %}
-            <option value="{{ std }}">{{ std }}</option>
+            <option value="{{ std }}" {% if selected==std %}selected{% endif %}>{{ std }}</option>
           {% endfor %}
         </select>
       </div>
 
-      <div class="col-12">
-        <button type="submit" class="btn btn-primary">Analyze</button>
+      <div class="col-md-2 d-flex align-items-end">
+        <button class="btn btn-primary w-100" type="submit">Calculate</button>
       </div>
     </form>
 
     {% if result %}
-      <div class="card mt-5">
-        <div class="card-body">
-          <h3 class="card-title">Result</h3>
-          <p class="mb-1"><strong>File:</strong> {{ result.filename }}</p>
-          <p class="mb-3"><strong>Standard:</strong> {{ result.standard }}</p>
-          <h5 class="mt-3">Extracted Text (preview)</h5>
-          <pre class="mt-2" style="white-space: pre-wrap; max-height: 60vh; overflow:auto; background:#f8f9fa; padding:1rem; border:1px solid #e9ecef;">
-{{ result.text }}
-          </pre>
-        </div>
+      <div class="mt-5 p-4 bg-white rounded shadow-sm">
+        <h4 class="mb-3">Result</h4>
+        <p><strong>Uploaded file:</strong> {{ result.filename }}</p>
+        <p><strong>Selected standard:</strong> {{ result.standard }}</p>
+
+        <hr>
+        <h5>PDF Text Preview</h5>
+        <pre style="white-space:pre-wrap">{{ result.preview }}</pre>
       </div>
     {% endif %}
   </div>

@@ -1,79 +1,96 @@
-import os
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request
 from werkzeug.utils import secure_filename
+import os
+import re
 import pdfplumber
-
-ALLOWED_EXTENSIONS = {"pdf"}
+import pandas as pd
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret")  # needed for flash()
-app.config["UPLOAD_FOLDER"] = os.environ.get("UPLOAD_FOLDER", "uploads")
-os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
-# Single required standard per your request
-STANDARDS = ["AzureWeb_5"]
+# ---------------- Config ----------------
+UPLOAD_FOLDER = "uploads"
+ALLOWED_EXT = {".pdf"}
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
+# ---------------- Standards list ----------------
+# Your repo already uses a "standards keywords.csv" file.
+# Its standard column is sometimes named "Standards" (you used this previously). :contentReference[oaicite:0]{index=0}
+standard_keywords_df = pd.read_csv("standards keywords.csv")
+standard_keywords_df.columns = standard_keywords_df.columns.str.strip()
+if "Standards" in standard_keywords_df.columns and "Standard" not in standard_keywords_df.columns:
+    standard_keywords_df.rename(columns={"Standards": "Standard"}, inplace=True)
+
+standards = (
+    standard_keywords_df["Standard"]
+    .dropna()
+    .astype(str)
+    .str.strip()
+    .sort_values()
+    .unique()
+    .tolist()
+)
+
+# ---------------- Helpers ----------------
 def allowed_file(filename: str) -> bool:
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+    return os.path.splitext(filename)[1].lower() in ALLOWED_EXT
 
-def extract_pdf_text(path: str) -> str:
-    """Read text from all pages of a PDF; skip pages that have no extractable text."""
-    parts = []
+def extract_text_from_pdf(path: str, max_chars: int = 2000) -> str:
+    """Quick text extraction + light cleaning for preview."""
+    chunks = []
     with pdfplumber.open(path) as pdf:
         for page in pdf.pages:
-            txt = page.extract_text() or ""
-            if txt.strip():
-                parts.append(txt)
-    return "\n\n".join(parts).strip()
+            t = page.extract_text() or ""
+            chunks.append(t)
+            if sum(map(len, chunks)) >= max_chars:
+                break
+    text = re.sub(r"\s+", " ", "\n".join(chunks)).strip()
+    return text[:max_chars] if text else "(no text extracted)"
 
+# ---------------- Routes ----------------
 @app.route("/", methods=["GET"])
 def home():
-    return render_template("index.html", standards=STANDARDS, result=None)
+    return render_template(
+        "index.html",
+        standards=standards,
+        selected=None,
+        result=None,
+        error=None,
+        message="Deployed via Azure!"
+    )
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
-    std = request.form.get("standard", "").strip()
-    file = request.files.get("bank_pdf")
+    std = (request.form.get("standard") or "").strip()
+    pdf = request.files.get("bank_pdf")
 
+    # Validate inputs
     if not std:
-        flash("Please choose a standard.")
-        return redirect(url_for("home"))
-    if std not in STANDARDS:
-        flash("Invalid standard selected.")
-        return redirect(url_for("home"))
-    if not file or file.filename == "":
-        flash("Please upload a PDF file.")
-        return redirect(url_for("home"))
-    if not allowed_file(file.filename):
-        flash("Only .pdf files are allowed.")
-        return redirect(url_for("home"))
+        return render_template("index.html", standards=standards, selected=None, result=None,
+                               error="Please select a standard.", message=None)
+    if not pdf or pdf.filename == "":
+        return render_template("index.html", standards=standards, selected=std, result=None,
+                               error="Please upload a bank ESG report (PDF).", message=None)
+    if not allowed_file(pdf.filename):
+        return render_template("index.html", standards=standards, selected=std, result=None,
+                               error="The uploaded file should be a PDF.", message=None)
 
-    # Save upload
-    filename = secure_filename(file.filename)
-    path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-    file.save(path)
+    # Save & parse
+    fname = secure_filename(pdf.filename)
+    fpath = os.path.join(app.config["UPLOAD_FOLDER"], fname)
+    pdf.save(fpath)
 
-    # Extract text
-    try:
-        text = extract_pdf_text(path)
-        if not text:
-            text = "(No extractable text found in the PDF.)"
-    except Exception as e:
-        text = f"(Error reading PDF: {e})"
+    preview = extract_text_from_pdf(fpath, max_chars=2000)
 
-    # Show up to ~10,000 characters to keep page responsive
-    preview = text[:10000] + ("..." if len(text) > 10000 else "")
+    result = {
+        "filename": fname,
+        "standard": std,
+        "preview": preview,
+    }
 
-    return render_template(
-        "index.html",
-        standards=STANDARDS,
-        result={
-            "filename": filename,
-            "standard": std,
-            "text": preview
-        }
-    )
+    return render_template("index.html", standards=standards, selected=std,
+                           result=result, error=None, message=None)
 
 if __name__ == "__main__":
-    # Local run: python app.py
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    # Azure sets WEBSITES_PORT; we still bind to 8000 locally.
+    app.run(host="0.0.0.0", port=8000)
