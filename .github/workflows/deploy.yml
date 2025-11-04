@@ -8,11 +8,12 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -22,10 +23,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # (Optional) run unit tests here
+      # - name: Tests
+      #   run: pytest -q
+
+      # Publish to Azure App Service using a publish profile secret
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: YOUR_AZURE_WEBAPP_NAME   # e.g., lily-bank-std-comparator-v1
-          slot-name: production
+          app-name: "lily-bank-std-comparator-v1"   # <- your App Service name
+          slot-name: "production"
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
           package: .

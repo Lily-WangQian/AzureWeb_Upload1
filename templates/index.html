@@ -2,47 +2,115 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Bank and Standard Similarity Comparator</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <title>Bank &amp; Standard Comparator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light p-4">
   <div class="container">
-    <h1 class="mb-4 text-center">Bank and Standard Similarity Comparator</h1>
+    <h1 class="mb-4 text-center">Bank &amp; Standard Similarity Comparator</h1>
 
     {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
     {% if message %}<div class="alert alert-info">{{ message }}</div>{% endif %}
 
     <form class="row g-3" method="POST" action="/analyze" enctype="multipart/form-data">
       <div class="col-md-6">
-        <label class="form-label">Upload Bank ESG PDF:</label>
+        <label class="form-label">Upload Bank ESG PDF</label>
         <input type="file" name="bank_pdf" class="form-control" accept="application/pdf" required>
         <div class="form-text">Only .pdf is accepted.</div>
       </div>
 
       <div class="col-md-4">
-        <label class="form-label">Select Standard:</label>
+        <label class="form-label">Select Standard</label>
         <select name="standard" class="form-select" required>
           <option value="">-- Select Standard --</option>
           {% for std in standards %}
-            <option value="{{ std }}" {% if selected==std %}selected{% endif %}>{{ std }}</option>
+            <option value="{{ std }}"{% if selected == std %} selected="selected"{% endif %}>{{ std }}</option>
           {% endfor %}
         </select>
       </div>
 
       <div class="col-md-2 d-flex align-items-end">
-        <button class="btn btn-primary w-100" type="submit">Calculate</button>
+        <button class="btn btn-primary w-100" type="submit">Analyze</button>
       </div>
     </form>
 
-    {% if result %}
+    {% if bank %}
       <div class="mt-5 p-4 bg-white rounded shadow-sm">
-        <h4 class="mb-3">Result</h4>
-        <p><strong>Uploaded file:</strong> {{ result.filename }}</p>
-        <p><strong>Selected standard:</strong> {{ result.standard }}</p>
+        <h4 class="mb-3">{{ bank.filename | replace('.pdf','') }} (Uploaded ESG Report)</h4>
 
-        <hr>
-        <h5>PDF Text Preview</h5>
-        <pre style="white-space:pre-wrap">{{ result.preview }}</pre>
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Report</th>
+                <th>Publication Date</th>
+                <th>TF-IDF Keywords</th>
+                <th>Contextual Keywords</th>
+                <th>Combined Keywords</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{ bank.filename | replace('.pdf','') }}</td>
+                <td>{{ bank.publication_date or '—' }}</td>
+                <td>
+                  {% if bank.tfidf_keywords %}
+                    <ul class="mb-0">{% for kw in bank.tfidf_keywords %}<li>{{ kw }}</li>{% endfor %}</ul>
+                  {% else %}<em>—</em>{% endif %}
+                </td>
+                <td>
+                  {% if bank.contextual_keywords %}
+                    <ul class="mb-0">{% for kw in bank.contextual_keywords %}<li>{{ kw }}</li>{% endfor %}</ul>
+                  {% else %}<em>—</em>{% endif %}
+                </td>
+                <td>
+                  {% if bank.combined_keywords %}
+                    <ul class="mb-0">{% for kw in bank.combined_keywords %}<li>{{ kw }}</li>{% endfor %}</ul>
+                  {% else %}<em>—</em>{% endif %}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <hr class="my-4">
+
+        <h5 class="mb-3">{{ std_info.name }} — Standard Details</h5>
+        <div class="table-responsive">
+          <table class="table table-bordered">
+            <thead class="table-light">
+              <tr>
+                <th>Standard</th>
+                <th>Publication Date</th>
+                <th>TF-IDF Keywords</th>
+                <th>Contextual Keywords</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{ std_info.name }}</td>
+                <td>{{ std_info.publication_date }}</td>
+                <td>
+                  {% if std_info.tfidf_keywords %}
+                    <ul class="mb-0">{% for kw in std_info.tfidf_keywords %}<li>{{ kw }}</li>{% endfor %}</ul>
+                  {% else %}<em>—</em>{% endif %}
+                </td>
+                <td>
+                  {% if std_info.contextual_keywords %}
+                    <ul class="mb-0">{% for kw in std_info.contextual_keywords %}<li>{{ kw }}</li>{% endfor %}</ul>
+                  {% else %}<em>—</em>{% endif %}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h5 class="mt-4">Auto Summary of Uploaded Report</h5>
+        <p class="border rounded p-3 bg-light">{{ bank.summary }}</p>
+
+        <h6 class="mt-4">PDF Text Preview</h6>
+        <pre style="white-space:pre-wrap">{{ bank.preview }}</pre>
       </div>
     {% endif %}
   </div>
