@@ -1,4 +1,15 @@
+# --- minimal, safe on small App Service ---
 Flask==3.0.3
-pandas==2.2.2
+gunicorn==21.2.0
 pypdf==4.3.1
-scikit-learn==1.4.2
+pandas==2.2.2
+numpy==1.26.4
+scikit-learn==1.5.1
+yake==0.4.8
+
+# --- heavy (optional): enable only if plan has enough memory / build time ---
+# sentence-transformers==3.0.1
+# keybert==0.8.5
+# torch==2.3.0
+# torchvision==0.18.0
+# torchaudio==2.3.0
